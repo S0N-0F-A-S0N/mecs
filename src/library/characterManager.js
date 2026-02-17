@@ -16,6 +16,7 @@ import { ManifestDataManager } from "./manifestDataManager";
 import { WalletCollections } from "./walletCollections";
 import { buySolanaPurchasableAssets } from "./mint-utils"
 import { OwnedNFTTraitIDs } from "./ownedNFTTraitIDs";
+import { MeshScanner } from "./MeshScanner";
 
 //import { Connection, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 
@@ -1730,6 +1731,16 @@ export class CharacterManager {
         model: vrm && vrm.scene,
         vrm: vrm
       }
+    }
+
+    /**
+     * Performs a debug scan of the character meshes.
+     */
+    debugScan(){
+      if (!this.meshScanner) {
+        this.meshScanner = new MeshScanner(this, this.rootModel);
+      }
+      this.meshScanner.scanCharacter();
     }
 }
 

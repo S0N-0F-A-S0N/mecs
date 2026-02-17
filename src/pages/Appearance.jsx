@@ -441,6 +441,14 @@ function Appearance() {
           onClick={back}
         />
 
+        <CustomButton
+          theme="light"
+          text="Debug Scan"
+          size={14}
+          className={styles.buttonLeft}
+          onClick={() => characterManager.debugScan()}
+        />
+
         {
         characterManager.canDownload() &&
           <CustomButton
