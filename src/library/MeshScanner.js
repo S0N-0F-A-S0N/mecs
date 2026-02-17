@@ -43,6 +43,24 @@ export class MeshScanner {
 
     console.log(`MeshScanner: Found ${meshes.length} meshes.`);
 
+    // Find the primary VRM (usually from the "Body" trait or the first one with humanoid)
+    let primaryVRM = null;
+    const avatar = this.characterManager.avatar;
+    if (avatar) {
+        // Prefer "Body" first
+        if (avatar["Body"] && avatar["Body"].vrm) {
+            primaryVRM = avatar["Body"].vrm;
+        } else {
+             // Find any vrm
+             for (const key in avatar) {
+                 if (avatar[key].vrm) {
+                     primaryVRM = avatar[key].vrm;
+                     break;
+                 }
+             }
+        }
+    }
+
     // Temporarily set DoubleSide to ensure we hit backfaces if inside
     const originalSides = new Map();
     meshes.forEach(mesh => {
@@ -69,7 +87,7 @@ export class MeshScanner {
         ];
 
         chains.forEach(chain => {
-            this.scanChain(chain, meshes);
+            this.scanChain(chain, meshes, primaryVRM);
         });
     } finally {
         console.log("MeshScanner: Scan complete.");
@@ -84,17 +102,27 @@ export class MeshScanner {
    * Scans a chain of bones.
    * @param {string[]} boneNames - Array of VRM bone names.
    * @param {THREE.Mesh[]} meshes - Meshes to raycast against.
+   * @param {Object} [vrm] - VRM instance for bone lookup.
    */
-  scanChain(boneNames, meshes) {
+  scanChain(boneNames, meshes, vrm) {
       const model = this.characterManager.getCurrentCharacterModel();
 
       for (let i = 0; i < boneNames.length - 1; i++) {
           const startBoneName = boneNames[i];
           const endBoneName = boneNames[i+1];
 
-          // Find bones in the character hierarchy
-          let startBone = model.getObjectByName(startBoneName);
-          let endBone = model.getObjectByName(endBoneName);
+          let startBone = null;
+          let endBone = null;
+
+          // Try VRM lookup first
+          if (vrm && vrm.humanoid) {
+             startBone = vrm.humanoid.getNormalizedBoneNode(startBoneName);
+             endBone = vrm.humanoid.getNormalizedBoneNode(endBoneName);
+          }
+
+          // Fallback: Name lookup in model
+          if (!startBone) startBone = model.getObjectByName(startBoneName);
+          if (!endBone) endBone = model.getObjectByName(endBoneName);
 
           // Fallback: If not found in character model, check the parent model or scene
           if (!startBone) startBone = this.scene.getObjectByName(startBoneName);
@@ -103,7 +131,8 @@ export class MeshScanner {
           if (startBone && endBone) {
               this.scanBoneSegment(startBone, endBone, meshes);
           } else {
-              console.warn(`MeshScanner: Could not find bones for segment ${startBoneName} -> ${endBoneName}`);
+              // Only warn if we really couldn't find it
+              // console.warn(`MeshScanner: Could not find bones for segment ${startBoneName} -> ${endBoneName}`);
           }
       }
   }
