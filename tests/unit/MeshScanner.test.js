@@ -89,10 +89,22 @@ describe('MeshScanner', () => {
     const debugRoot = scene.getObjectByName("MeshScannerDebug");
     expect(debugRoot).toBeDefined();
 
-    // Expect children (lines/tubes)
-    // We expect rings and longitudinal lines.
-    console.log(`Debug lines generated: ${debugRoot.children.length}`);
+    // Expect children (lines/tubes + generated mesh)
     expect(debugRoot.children.length).toBeGreaterThan(0);
+
+    // Verify Generated Mesh
+    const meshes = [];
+    debugRoot.traverse((child) => {
+        if (child.name && child.name.startsWith("scanned_mesh")) {
+            meshes.push(child);
+        }
+    });
+
+    expect(meshes.length).toBeGreaterThan(0);
+    const generatedMesh = meshes[0];
+    expect(generatedMesh.isMesh).toBe(true);
+    expect(generatedMesh.geometry.attributes.position).toBeDefined();
+    expect(generatedMesh.geometry.index).toBeDefined();
 
     // Generate SVG for visualization
     const svgContent = generateSVG(debugRoot);
