@@ -201,6 +201,77 @@ export class MeshScanner {
 
     console.log(`MeshScanner: Scanned segment ${startBone.name}->${endBone.name}, generated ${rings.length} rings.`);
     this.visualizeRings(rings);
+    this.generateMeshFromRings(rings, `${startBone.name}_${endBone.name}`);
+  }
+
+  generateMeshFromRings(rings, segmentName) {
+      if (rings.length < 2) return;
+      const raysPerStep = rings[0].length;
+      const vertices = [];
+      const indices = [];
+
+      // Flatten vertices
+      for (let i = 0; i < rings.length; i++) {
+          for (let j = 0; j < raysPerStep; j++) {
+              const p = rings[i][j];
+              if (p) {
+                  vertices.push(p.x, p.y, p.z);
+              } else {
+                  vertices.push(0, 0, 0); // Dummy vertex
+              }
+          }
+      }
+
+      // Generate indices for quads
+      for (let i = 0; i < rings.length - 1; i++) {
+          for (let j = 0; j < raysPerStep; j++) {
+              const current = i * raysPerStep + j;
+              const next = (i + 1) * raysPerStep + j;
+
+              // Wrap around for the last ray to connect to the first
+              const nextJ = (j + 1) % raysPerStep;
+
+              const currentRight = i * raysPerStep + nextJ;
+              const nextRight = (i + 1) * raysPerStep + nextJ;
+
+              // Check if all 4 points are valid (not null)
+              // Note: We check the rings array directly because the vertex array has dummy values
+              if (rings[i][j] && rings[i+1][j] && rings[i][nextJ] && rings[i+1][nextJ]) {
+                  // Quad: current, next, nextRight, currentRight
+
+                  // Triangle 1: current, next, currentRight
+                  // (CCW winding: current -> next -> currentRight ? No, that's not right.
+                  // Let's visualize:
+                  // next      nextRight
+                  // ^         ^
+                  // |         |
+                  // current -> currentRight
+
+                  // Tri 1: current -> currentRight -> next
+                  indices.push(current, currentRight, next);
+
+                  // Tri 2: currentRight -> nextRight -> next
+                  indices.push(currentRight, nextRight, next);
+              }
+          }
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+
+      const material = new THREE.MeshStandardMaterial({
+          color: 0x808080,
+          wireframe: true,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.5
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = "scanned_mesh_" + segmentName;
+      this.debugRoot.add(mesh);
   }
 
   visualizeRings(rings) {
